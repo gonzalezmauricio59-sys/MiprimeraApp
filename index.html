@@ -142,6 +142,18 @@
   }
   .day-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+  .sound-chip { min-width: 0; font-size: 11.5px; line-height: 1.3; padding: 10px 4px; }
+
+  .file-drop {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-card2); border: 1px dashed var(--border);
+    border-radius: 12px; padding: 12px 14px; cursor: pointer;
+  }
+  .file-drop input[type="file"] { display: none; }
+  .file-drop .file-drop-label { font-size: 13px; color: var(--text-dim); flex: 1; }
+  .file-drop .file-drop-icon { font-size: 20px; }
+  .hint { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+
   .btn-row { display: flex; gap: 10px; margin-top: 22px; }
   .btn {
     flex: 1; padding: 14px; border-radius: 12px; border: none;
@@ -196,6 +208,24 @@
   #ringOverlay .phrase {
     font-size: 30px; font-weight: 800; line-height: 1.3;
     margin-bottom: 34px; max-width: 420px;
+  }
+  #ringOverlay .video-wrap {
+    display: none; width: 100%; max-width: 420px; margin-bottom: 18px;
+  }
+  #ringOverlay .video-box {
+    position: relative; width: 100%; padding-top: 56.25%;
+    border-radius: 16px; overflow: hidden; background: #000;
+    box-shadow: 0 0 0 1px var(--border);
+  }
+  #ringOverlay .video-box iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  #ringOverlay .play-btn {
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; border: none; border-radius: 999px;
+    padding: 18px 30px; font-size: 17px; font-weight: 800;
+    margin-top: 14px; cursor: pointer; width: 100%;
   }
   #ringOverlay .tiktok-btn {
     display: none; align-items: center; gap: 10px; justify-content: center;
@@ -272,6 +302,28 @@
     <label>Nombre (opcional)</label>
     <input type="text" id="alarmLabel" placeholder="Ej: Entrenar como Naruto">
 
+    <label>Sonido de la alarma</label>
+    <div class="day-picker">
+      <div class="day-chip sound-chip active" data-sound="default">🔔<br>Tono</div>
+      <div class="day-chip sound-chip" data-sound="file">🎵<br>Audio propio</div>
+      <div class="day-chip sound-chip" data-sound="youtube">▶️<br>YouTube</div>
+    </div>
+
+    <div id="soundFileSection" style="display:none;">
+      <label class="file-drop" for="alarmAudioFile">
+        <span class="file-drop-icon">🎵</span>
+        <span class="file-drop-label" id="alarmAudioFileName">Tocá para elegir un MP3 de tu celular</span>
+      </label>
+      <input type="file" id="alarmAudioFile" accept="audio/*">
+      <div class="hint">Máx. 3MB para poder guardarlo en el navegador.</div>
+    </div>
+
+    <div id="soundYoutubeSection" style="display:none;">
+      <label>Link de YouTube</label>
+      <input type="url" id="alarmYoutube" placeholder="https://www.youtube.com/watch?v=...">
+      <div class="hint">Se mostrará el video en pantalla completa cuando suene la alarma.</div>
+    </div>
+
     <label>Link de TikTok (opcional)</label>
     <input type="url" id="alarmTiktok" placeholder="https://www.tiktok.com/@usuario/video/...">
 
@@ -300,8 +352,12 @@
 <!-- Ring overlay -->
 <div id="ringOverlay">
   <div class="time-now" id="ringTime">07:00</div>
-  <div class="pulse-icon">🔥</div>
+  <div class="pulse-icon" id="ringPulseIcon">🔥</div>
   <div class="phrase" id="ringPhrase">¡Levántate y vence!</div>
+  <div class="video-wrap" id="ringVideoWrap">
+    <div class="video-box"><iframe id="ringVideoFrame" allow="autoplay; encrypted-media" allowfullscreen playsinline></iframe></div>
+    <button class="play-btn" id="ringVideoPlayBtn">▶ Reproducir mi motivación</button>
+  </div>
   <button class="tiktok-btn" id="ringTiktokBtn">🎵 Ver mi motivación</button>
   <button class="stop-btn" onclick="stopAlarm()">Detener alarma</button>
 </div>
@@ -419,6 +475,18 @@ function formatDays(days) {
   return sorted.map(d => DAY_NAMES[d]).join(' ');
 }
 
+function soundLabel(a) {
+  if (a.soundType === 'youtube') return '▶️ YouTube';
+  if (a.soundType === 'file') return '🎵 Audio propio';
+  return '🔔 Tono';
+}
+
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 function renderAlarms() {
   const alarms = loadAlarms().sort((a,b) => a.time.localeCompare(b.time));
   const list = document.getElementById('alarmList');
@@ -431,7 +499,7 @@ function renderAlarms() {
       <div class="alarm-time">${a.time}</div>
       <div class="alarm-info">
         <div>${a.label ? escapeHtml(a.label) : 'Alarma'}</div>
-        <div class="alarm-days">${formatDays(a.days)}</div>
+        <div class="alarm-days">${formatDays(a.days)} · ${soundLabel(a)}</div>
         ${a.tiktok ? `<div class="alarm-link">🎵 ${escapeHtml(a.tiktok)}</div>` : ''}
       </div>
       <div class="alarm-actions">
@@ -467,6 +535,16 @@ function deleteAlarm(id) {
 
 let editingAlarmId = null;
 let selectedDays = new Set();
+let selectedSoundType = 'default';
+let pendingAudioData = null;
+let pendingAudioFileName = null;
+
+function setSoundType(type) {
+  selectedSoundType = type;
+  document.querySelectorAll('.sound-chip').forEach(c => c.classList.toggle('active', c.dataset.sound === type));
+  document.getElementById('soundFileSection').style.display = type === 'file' ? 'block' : 'none';
+  document.getElementById('soundYoutubeSection').style.display = type === 'youtube' ? 'block' : 'none';
+}
 
 function openAlarmModal() {
   editingAlarmId = null;
@@ -475,8 +553,14 @@ function openAlarmModal() {
   document.getElementById('alarmTime').value = '07:00';
   document.getElementById('alarmLabel').value = '';
   document.getElementById('alarmTiktok').value = '';
+  document.getElementById('alarmYoutube').value = '';
+  document.getElementById('alarmAudioFile').value = '';
+  document.getElementById('alarmAudioFileName').textContent = 'Tocá para elegir un MP3 de tu celular';
+  pendingAudioData = null;
+  pendingAudioFileName = null;
   selectedDays = new Set();
   updateDayChips();
+  setSoundType('default');
   document.getElementById('alarmModal').classList.add('active');
 }
 
@@ -489,8 +573,16 @@ function editAlarm(id) {
   document.getElementById('alarmTime').value = a.time;
   document.getElementById('alarmLabel').value = a.label || '';
   document.getElementById('alarmTiktok').value = a.tiktok || '';
+  document.getElementById('alarmYoutube').value = a.youtubeUrl || '';
+  document.getElementById('alarmAudioFile').value = '';
+  document.getElementById('alarmAudioFileName').textContent = a.audioFileName
+    ? ('🎵 ' + a.audioFileName + ' (guardado)')
+    : 'Tocá para elegir un MP3 de tu celular';
+  pendingAudioData = null;
+  pendingAudioFileName = null;
   selectedDays = new Set(a.days || []);
   updateDayChips();
+  setSoundType(a.soundType || 'default');
   document.getElementById('alarmModal').classList.add('active');
 }
 
@@ -498,7 +590,7 @@ function closeAlarmModal() {
   document.getElementById('alarmModal').classList.remove('active');
 }
 
-document.querySelectorAll('.day-chip').forEach(chip => {
+document.querySelectorAll('.day-chip[data-day]').forEach(chip => {
   chip.addEventListener('click', () => {
     const day = parseInt(chip.dataset.day, 10);
     if (selectedDays.has(day)) selectedDays.delete(day);
@@ -508,10 +600,41 @@ document.querySelectorAll('.day-chip').forEach(chip => {
 });
 
 function updateDayChips() {
-  document.querySelectorAll('.day-chip').forEach(chip => {
+  document.querySelectorAll('.day-chip[data-day]').forEach(chip => {
     const day = parseInt(chip.dataset.day, 10);
     chip.classList.toggle('active', selectedDays.has(day));
   });
+}
+
+document.querySelectorAll('.sound-chip').forEach(chip => {
+  chip.addEventListener('click', () => setSoundType(chip.dataset.sound));
+});
+
+document.getElementById('alarmAudioFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    alert('El archivo es muy pesado. Elegí un MP3 de menos de 3MB para poder guardarlo en el navegador.');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingAudioData = reader.result;
+    pendingAudioFileName = file.name;
+    document.getElementById('alarmAudioFileName').textContent = '🎵 ' + file.name;
+  };
+  reader.readAsDataURL(file);
+});
+
+function persistAlarms(alarms) {
+  try {
+    saveAlarms(alarms);
+    return true;
+  } catch (e) {
+    alert('No se pudo guardar: el almacenamiento del navegador está lleno. Probá con un audio más liviano o borrá alarmas viejas.');
+    return false;
+  }
 }
 
 function saveAlarm() {
@@ -520,19 +643,39 @@ function saveAlarm() {
   const label = document.getElementById('alarmLabel').value.trim();
   const tiktok = document.getElementById('alarmTiktok').value.trim();
   const alarms = loadAlarms();
+  const existing = editingAlarmId ? alarms.find(x => x.id === editingAlarmId) : null;
 
-  if (editingAlarmId) {
-    const a = alarms.find(x => x.id === editingAlarmId);
-    a.time = time; a.label = label; a.tiktok = tiktok; a.days = Array.from(selectedDays);
+  let audioData = null, audioFileName = null;
+  if (selectedSoundType === 'file') {
+    audioData = pendingAudioData || (existing ? existing.audioData : null);
+    audioFileName = pendingAudioFileName || (existing ? existing.audioFileName : null);
+    if (!audioData) { alert('Subí un archivo de audio o elegí otro tipo de sonido.'); return; }
+  }
+
+  let youtubeUrl = null, youtubeId = null;
+  if (selectedSoundType === 'youtube') {
+    youtubeUrl = document.getElementById('alarmYoutube').value.trim();
+    youtubeId = extractYouTubeId(youtubeUrl);
+    if (!youtubeId) { alert('Ese link de YouTube no parece válido. Copiá el link completo del video.'); return; }
+  }
+
+  if (existing) {
+    existing.time = time; existing.label = label; existing.tiktok = tiktok;
+    existing.days = Array.from(selectedDays);
+    existing.soundType = selectedSoundType;
+    existing.audioData = audioData; existing.audioFileName = audioFileName;
+    existing.youtubeUrl = youtubeUrl; existing.youtubeId = youtubeId;
   } else {
     alarms.push({
       id: uid(), time, label, tiktok,
       days: Array.from(selectedDays),
+      soundType: selectedSoundType,
+      audioData, audioFileName, youtubeUrl, youtubeId,
       enabled: true,
       lastFired: null
     });
   }
-  saveAlarms(alarms);
+  if (!persistAlarms(alarms)) return;
   closeAlarmModal();
   renderAlarms();
 }
@@ -635,6 +778,17 @@ function checkAlarms() {
 }
 setInterval(checkAlarms, 1000);
 
+let currentYoutubeId = null;
+
+function playYouTubeEmbed(videoId) {
+  const frame = document.getElementById('ringVideoFrame');
+  frame.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`;
+}
+
+document.getElementById('ringVideoPlayBtn').addEventListener('click', () => {
+  if (currentYoutubeId) playYouTubeEmbed(currentYoutubeId);
+});
+
 function fireAlarm(alarm) {
   currentRingingAlarm = alarm;
   const phrase = getNextPhrase();
@@ -649,8 +803,31 @@ function fireAlarm(alarm) {
     tiktokBtn.style.display = 'none';
   }
 
+  const videoWrap = document.getElementById('ringVideoWrap');
+  const pulseIcon = document.getElementById('ringPulseIcon');
+  const audioEl = document.getElementById('alarmAudio');
+  stopAlarmSound();
+  audioEl.pause();
+  videoWrap.style.display = 'none';
+  document.getElementById('ringVideoFrame').src = '';
+  currentYoutubeId = null;
+
+  if (alarm.soundType === 'youtube' && alarm.youtubeId) {
+    pulseIcon.style.display = 'none';
+    videoWrap.style.display = 'block';
+    currentYoutubeId = alarm.youtubeId;
+    playYouTubeEmbed(alarm.youtubeId);
+  } else if (alarm.soundType === 'file' && alarm.audioData) {
+    pulseIcon.style.display = '';
+    audioEl.src = alarm.audioData;
+    audioEl.loop = true;
+    audioEl.play().catch(() => {});
+  } else {
+    pulseIcon.style.display = '';
+    playAlarmSound();
+  }
+
   document.getElementById('ringOverlay').classList.add('active');
-  playAlarmSound();
 
   if (navigator.vibrate) {
     try { navigator.vibrate([500, 200, 500, 200, 500]); } catch(e){}
@@ -660,7 +837,13 @@ function fireAlarm(alarm) {
 function stopAlarm() {
   document.getElementById('ringOverlay').classList.remove('active');
   stopAlarmSound();
+  const audioEl = document.getElementById('alarmAudio');
+  audioEl.pause();
+  audioEl.src = '';
+  document.getElementById('ringVideoFrame').src = '';
+  document.getElementById('ringVideoWrap').style.display = 'none';
   currentRingingAlarm = null;
+  currentYoutubeId = null;
   renderAlarms();
 }
 
