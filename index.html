@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Alarma Motivacional</title>
+<style>
+  :root{
+    --bg: #0b0d14;
+    --bg-card: #151824;
+    --bg-card2: #1c1f2e;
+    --accent: #ff5f5f;
+    --accent2: #ffb84d;
+    --text: #f2f2f7;
+    --text-dim: #9a9db0;
+    --border: #2a2e42;
+    --danger: #ff4d4d;
+    --success: #4dff9e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    overscroll-behavior-y: contain;
+  }
+  #app { max-width: 480px; margin: 0 auto; padding: 16px 16px 100px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 4px 20px;
+  }
+  header.top h1 {
+    font-size: 22px; margin: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-weight: 800; letter-spacing: -0.5px;
+  }
+  header.top .clock {
+    font-size: 13px; color: var(--text-dim);
+  }
+
+  .tabs {
+    display: flex; gap: 8px; margin-bottom: 18px;
+    background: var(--bg-card); border-radius: 14px; padding: 4px;
+  }
+  .tabs button {
+    flex: 1; padding: 10px 6px; border: none; border-radius: 10px;
+    background: transparent; color: var(--text-dim); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .15s ease;
+  }
+  .tabs button.active {
+    background: linear-gradient(135deg, var(--accent), #ff8a5c);
+    color: #fff;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .alarm-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .alarm-item.disabled { opacity: 0.45; }
+  .alarm-time {
+    font-size: 30px; font-weight: 700; letter-spacing: -1px; min-width: 92px;
+  }
+  .alarm-info { flex: 1; min-width: 0; }
+  .alarm-days { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .alarm-link { font-size: 12px; color: var(--accent2); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .alarm-actions { display: flex; align-items: center; gap: 10px; }
+
+  .switch {
+    position: relative; width: 46px; height: 26px; flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: #33374a; border-radius: 999px; transition: .2s;
+  }
+  .slider:before {
+    content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .2s;
+  }
+  input:checked + .slider { background: var(--accent); }
+  input:checked + .slider:before { transform: translateX(20px); }
+
+  .icon-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer; padding: 6px;
+  }
+  .icon-btn:hover { color: var(--text); }
+
+  .empty-state {
+    text-align: center; color: var(--text-dim); padding: 60px 20px;
+    font-size: 15px; line-height: 1.6;
+  }
+  .empty-state .big { font-size: 44px; margin-bottom: 10px; }
+
+  .fab {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    max-width: 480px; width: calc(100% - 32px);
+    display: flex; justify-content: center;
+    z-index: 20;
+  }
+  .fab button {
+    width: 64px; height: 64px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, var(--accent), #ff8a5c);
+    color: #fff; font-size: 30px; font-weight: 300;
+    box-shadow: 0 8px 24px rgba(255,95,95,0.4);
+    cursor: pointer;
+  }
+
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; font-weight: 600; }
+  input[type="time"], input[type="text"], input[type="url"], textarea {
+    width: 100%; background: var(--bg-card2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 16px;
+    outline: none;
+  }
+  input[type="time"] { font-size: 26px; text-align: center; font-weight: 700; }
+  textarea { resize: vertical; min-height: 70px; font-family: inherit; }
+
+  .day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+  .day-chip {
+    flex: 1; min-width: 38px; text-align: center; padding: 10px 0;
+    border-radius: 10px; background: var(--bg-card2); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .day-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 22px; }
+  .btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: none;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #ff8a5c); color: #fff; }
+  .btn-secondary { background: var(--bg-card2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255,77,77,0.4); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 50; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-sheet {
+    background: var(--bg-card); width: 100%; max-width: 480px;
+    border-radius: 20px 20px 0 0; padding: 20px 20px 30px;
+    max-height: 88vh; overflow-y: auto;
+  }
+  .modal-sheet h2 { margin: 0 0 4px; font-size: 19px; }
+  .modal-close { text-align: right; }
+  .modal-close button { background: none; border: none; color: var(--text-dim); font-size: 22px; cursor: pointer; }
+
+  .phrase-item {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 10px; background: var(--bg-card2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .phrase-item p { margin: 0; font-size: 14px; line-height: 1.4; flex: 1; }
+  .phrase-item .tag { display:inline-block; font-size: 10px; color: var(--accent2); margin-top:6px; font-weight:700; letter-spacing: .5px;}
+  .phrase-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* Ring / alarm firing overlay */
+  #ringOverlay {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: radial-gradient(circle at 50% 20%, #2a1030, #0b0d14 70%);
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 30px; text-align: center;
+  }
+  #ringOverlay.active { display: flex; }
+  #ringOverlay .time-now {
+    font-size: 20px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 2px;
+  }
+  #ringOverlay .pulse-icon {
+    font-size: 60px; margin-bottom: 18px;
+    animation: pulse 1s infinite ease-in-out;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  #ringOverlay .phrase {
+    font-size: 30px; font-weight: 800; line-height: 1.3;
+    margin-bottom: 34px; max-width: 420px;
+  }
+  #ringOverlay .tiktok-btn {
+    display: none; align-items: center; gap: 10px; justify-content: center;
+    background: linear-gradient(135deg, #ff0050, #00f2ea);
+    color: #fff; border: none; border-radius: 999px;
+    padding: 18px 30px; font-size: 17px; font-weight: 800;
+    margin-bottom: 18px; cursor: pointer; width: 100%; max-width: 340px;
+  }
+  #ringOverlay .stop-btn {
+    background: var(--bg-card2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 999px; padding: 16px 40px; font-size: 16px; font-weight: 700; cursor: pointer;
+    width: 100%; max-width: 340px;
+  }
+
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <h1>⏰ Motivación</h1>
+    <div class="clock" id="liveClock">--:--</div>
+  </header>
+
+  <div class="tabs">
+    <button class="active" data-view="alarms">Alarmas</button>
+    <button data-view="phrases">Frases</button>
+  </div>
+
+  <!-- ALARMS VIEW -->
+  <div class="view active" id="view-alarms">
+    <div id="alarmList"></div>
+  </div>
+
+  <!-- PHRASES VIEW -->
+  <div class="view" id="view-phrases">
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:700;">Tus frases</div>
+        <div style="font-size:12px; color:var(--text-dim);" id="phraseCount"></div>
+      </div>
+      <button class="btn btn-primary" style="flex:none; padding:10px 16px;" onclick="openPhraseModal()">+ Agregar</button>
+    </div>
+    <div id="phraseList"></div>
+  </div>
+
+  <div class="fab">
+    <button onclick="openAlarmModal()">+</button>
+  </div>
+</div>
+
+<!-- Alarm creation/edit modal -->
+<div class="modal-overlay" id="alarmModal">
+  <div class="modal-sheet">
+    <div class="modal-close"><button onclick="closeAlarmModal()">✕</button></div>
+    <h2 id="alarmModalTitle">Nueva alarma</h2>
+    <input type="hidden" id="alarmId">
+
+    <label>Hora</label>
+    <input type="time" id="alarmTime" value="07:00">
+
+    <label>Repetir</label>
+    <div class="day-picker" id="dayPicker">
+      <div class="day-chip" data-day="1">L</div>
+      <div class="day-chip" data-day="2">M</div>
+      <div class="day-chip" data-day="3">X</div>
+      <div class="day-chip" data-day="4">J</div>
+      <div class="day-chip" data-day="5">V</div>
+      <div class="day-chip" data-day="6">S</div>
+      <div class="day-chip" data-day="0">D</div>
+    </div>
+
+    <label>Nombre (opcional)</label>
+    <input type="text" id="alarmLabel" placeholder="Ej: Entrenar como Naruto">
+
+    <label>Link de TikTok (opcional)</label>
+    <input type="url" id="alarmTiktok" placeholder="https://www.tiktok.com/@usuario/video/...">
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeAlarmModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAlarm()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Phrase creation/edit modal -->
+<div class="modal-overlay" id="phraseModal">
+  <div class="modal-sheet">
+    <div class="modal-close"><button onclick="closePhraseModal()">✕</button></div>
+    <h2 id="phraseModalTitle">Nueva frase</h2>
+    <input type="hidden" id="phraseId">
+    <label>Frase motivacional</label>
+    <textarea id="phraseText" placeholder="Escribe tu frase..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closePhraseModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePhrase()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ring overlay -->
+<div id="ringOverlay">
+  <div class="time-now" id="ringTime">07:00</div>
+  <div class="pulse-icon">🔥</div>
+  <div class="phrase" id="ringPhrase">¡Levántate y vence!</div>
+  <button class="tiktok-btn" id="ringTiktokBtn">🎵 Ver mi motivación</button>
+  <button class="stop-btn" onclick="stopAlarm()">Detener alarma</button>
+</div>
+
+<audio id="alarmAudio" loop></audio>
+
+<script>
+/* ---------- Almacenamiento ---------- */
+const STORAGE_ALARMS = 'ma_alarms';
+const STORAGE_PHRASES = 'ma_phrases';
+const STORAGE_QUEUE = 'ma_phrase_queue';
+
+const DEFAULT_PHRASES = [
+  { id: 'd1', text: 'El dolor es temporal, rendirse dura para siempre. — Naruto', builtin: true },
+  { id: 'd2', text: 'Un fracaso no significa nada, lo que importa es que sigas intentándolo. — Naruto', builtin: true },
+  { id: 'd3', text: 'Aquellos que rompen las reglas son escoria, pero los que abandonan a sus amigos son peor que escoria. — Kakashi, Naruto', builtin: true },
+  { id: 'd4', text: 'Si no te arriesgas, no podrás crear un futuro. — Naruto Uzumaki', builtin: true },
+  { id: 'd5', text: 'Cuando estés al límite, ahí es cuando debes seguir avanzando. — Naruto', builtin: true },
+  { id: 'd6', text: 'El poder no viene de la victoria, sino de las luchas. — Rocky Lee, Naruto', builtin: true },
+  { id: 'd7', text: 'No puedes cambiar el pasado, pero puedes decidir quién ser hoy. — Naruto', builtin: true },
+  { id: 'd8', text: 'Un genio es alguien que se esfuerza tan duro como puede. — Rock Lee, Naruto', builtin: true },
+  { id: 'd9', text: 'No es la fuerza lo que hace al héroe, es el corazón. — Naruto Uzumaki', builtin: true },
+  { id: 'd10', text: 'Levántate las veces que haga falta, ese es tu camino ninja. — Naruto', builtin: true },
+  { id: 'd11', text: 'No importa lo fuerte que seas, siempre hay alguien más fuerte. Sigue entrenando. — Vegeta, Dragon Ball', builtin: true },
+  { id: 'd12', text: 'Un guerrero nunca deja de superar sus límites. — Goku, Dragon Ball', builtin: true },
+  { id: 'd13', text: 'El poder no significa nada sin control. Domínate a ti mismo primero. — Dragon Ball Z', builtin: true },
+  { id: 'd14', text: 'Yo entreno todos los días porque quiero ser más fuerte que ayer. — Goku, Dragon Ball', builtin: true },
+  { id: 'd15', text: 'No te rindas, incluso cuando todo parezca imposible. — Gohan, Dragon Ball', builtin: true },
+  { id: 'd16', text: 'La verdadera fuerza nace de proteger lo que amas. — Dragon Ball Z', builtin: true },
+  { id: 'd17', text: 'Cada derrota es una oportunidad para volverte más fuerte. — Vegeta, Dragon Ball', builtin: true },
+  { id: 'd18', text: 'Si no arriesgas tu vida, no podrás derrotar a un enemigo fuerte. — Goku, Dragon Ball', builtin: true },
+  { id: 'd19', text: 'Levántate y lucha, aunque el mundo entero esté en tu contra. — Attack on Titan', builtin: true },
+  { id: 'd20', text: 'Si no luchas, no puedes ganar. — Eren Jaeger, Attack on Titan', builtin: true },
+  { id: 'd21', text: 'El mundo es cruel, pero también es muy hermoso. Sigue adelante. — Mikasa, Attack on Titan', builtin: true },
+  { id: 'd22', text: 'Dedica tu corazón a lo que hagas hasta el final. — Attack on Titan', builtin: true },
+  { id: 'd23', text: 'Sigue avanzando, aunque sea un paso a la vez. Eso es libertad. — Attack on Titan', builtin: true },
+  { id: 'd24', text: 'Nadie sabe cómo termina la historia, así que escribe la tuya luchando. — Attack on Titan', builtin: true },
+  { id: 'd25', text: 'La disciplina es elegir entre lo que quieres ahora y lo que quieres más. — Haikyuu', builtin: true },
+  { id: 'd26', text: 'Mientras el partido no termine, siempre hay una oportunidad. — Hinata Shoyo, Haikyuu', builtin: true },
+  { id: 'd27', text: 'No hay que ser un genio, hay que trabajar más duro que nadie. — Haikyuu', builtin: true },
+  { id: 'd28', text: 'Vuela más alto, no te conformes con lo que ya lograste. — Haikyuu', builtin: true },
+  { id: 'd29', text: 'Cada práctica cuenta, cada repetición te acerca a tu meta. — Haikyuu', builtin: true },
+  { id: 'd30', text: 'El que se esfuerza en silencio, brilla más fuerte en el momento decisivo. — Haikyuu', builtin: true },
+];
+
+function loadAlarms() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_ALARMS)) || []; } catch(e){ return []; }
+}
+function saveAlarms(a) { localStorage.setItem(STORAGE_ALARMS, JSON.stringify(a)); }
+
+function loadPhrases() {
+  const raw = localStorage.getItem(STORAGE_PHRASES);
+  if (!raw) {
+    savePhrases(DEFAULT_PHRASES);
+    return DEFAULT_PHRASES.slice();
+  }
+  try { return JSON.parse(raw); } catch(e) { return DEFAULT_PHRASES.slice(); }
+}
+function savePhrases(p) { localStorage.setItem(STORAGE_PHRASES, JSON.stringify(p)); }
+
+function loadQueue() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_QUEUE)) || []; } catch(e){ return []; }
+}
+function saveQueue(q) { localStorage.setItem(STORAGE_QUEUE, JSON.stringify(q)); }
+
+/* ---------- Rotación de frases sin repetir ---------- */
+function getNextPhrase() {
+  const phrases = loadPhrases();
+  if (phrases.length === 0) return { text: '¡Vamos, tú puedes lograrlo hoy!' };
+  let queue = loadQueue().filter(id => phrases.some(p => p.id === id));
+  if (queue.length === 0) {
+    queue = phrases.map(p => p.id);
+    // shuffle
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [queue[i], queue[j]] = [queue[j], queue[i]];
+    }
+  }
+  const nextId = queue.shift();
+  saveQueue(queue);
+  return phrases.find(p => p.id === nextId) || phrases[0];
+}
+
+/* ---------- IDs ---------- */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ---------- Navegación de pestañas ---------- */
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    if (btn.dataset.view === 'phrases') renderPhrases();
+  });
+});
+
+/* ---------- Reloj en vivo ---------- */
+function tickClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent =
+    now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+/* ---------- Render de alarmas ---------- */
+const DAY_NAMES = ['D','L','M','X','J','V','S'];
+function formatDays(days) {
+  if (!days || days.length === 0) return 'Una vez';
+  if (days.length === 7) return 'Todos los días';
+  const sorted = [1,2,3,4,5,6,0].filter(d => days.includes(d));
+  if (JSON.stringify(sorted.slice().sort()) === JSON.stringify([1,2,3,4,5].sort())) return 'Lunes a viernes';
+  if (JSON.stringify(sorted.slice().sort()) === JSON.stringify([0,6].sort())) return 'Fines de semana';
+  return sorted.map(d => DAY_NAMES[d]).join(' ');
+}
+
+function renderAlarms() {
+  const alarms = loadAlarms().sort((a,b) => a.time.localeCompare(b.time));
+  const list = document.getElementById('alarmList');
+  if (alarms.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big">⏰</div>No tienes alarmas todavía.<br>Toca el botón + para crear tu primera alarma motivacional.</div>`;
+    return;
+  }
+  list.innerHTML = alarms.map(a => `
+    <div class="alarm-item ${a.enabled ? '' : 'disabled'}">
+      <div class="alarm-time">${a.time}</div>
+      <div class="alarm-info">
+        <div>${a.label ? escapeHtml(a.label) : 'Alarma'}</div>
+        <div class="alarm-days">${formatDays(a.days)}</div>
+        ${a.tiktok ? `<div class="alarm-link">🎵 ${escapeHtml(a.tiktok)}</div>` : ''}
+      </div>
+      <div class="alarm-actions">
+        <button class="icon-btn" onclick="editAlarm('${a.id}')">✏️</button>
+        <button class="icon-btn" onclick="deleteAlarm('${a.id}')">🗑️</button>
+        <label class="switch">
+          <input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAlarm('${a.id}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function toggleAlarm(id, enabled) {
+  const alarms = loadAlarms();
+  const a = alarms.find(x => x.id === id);
+  if (a) { a.enabled = enabled; saveAlarms(alarms); }
+  renderAlarms();
+}
+
+function deleteAlarm(id) {
+  if (!confirm('¿Borrar esta alarma?')) return;
+  saveAlarms(loadAlarms().filter(a => a.id !== id));
+  renderAlarms();
+}
+
+let editingAlarmId = null;
+let selectedDays = new Set();
+
+function openAlarmModal() {
+  editingAlarmId = null;
+  document.getElementById('alarmModalTitle').textContent = 'Nueva alarma';
+  document.getElementById('alarmId').value = '';
+  document.getElementById('alarmTime').value = '07:00';
+  document.getElementById('alarmLabel').value = '';
+  document.getElementById('alarmTiktok').value = '';
+  selectedDays = new Set();
+  updateDayChips();
+  document.getElementById('alarmModal').classList.add('active');
+}
+
+function editAlarm(id) {
+  const a = loadAlarms().find(x => x.id === id);
+  if (!a) return;
+  editingAlarmId = id;
+  document.getElementById('alarmModalTitle').textContent = 'Editar alarma';
+  document.getElementById('alarmId').value = a.id;
+  document.getElementById('alarmTime').value = a.time;
+  document.getElementById('alarmLabel').value = a.label || '';
+  document.getElementById('alarmTiktok').value = a.tiktok || '';
+  selectedDays = new Set(a.days || []);
+  updateDayChips();
+  document.getElementById('alarmModal').classList.add('active');
+}
+
+function closeAlarmModal() {
+  document.getElementById('alarmModal').classList.remove('active');
+}
+
+document.querySelectorAll('.day-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const day = parseInt(chip.dataset.day, 10);
+    if (selectedDays.has(day)) selectedDays.delete(day);
+    else selectedDays.add(day);
+    updateDayChips();
+  });
+});
+
+function updateDayChips() {
+  document.querySelectorAll('.day-chip').forEach(chip => {
+    const day = parseInt(chip.dataset.day, 10);
+    chip.classList.toggle('active', selectedDays.has(day));
+  });
+}
+
+function saveAlarm() {
+  const time = document.getElementById('alarmTime').value;
+  if (!time) { alert('Selecciona una hora'); return; }
+  const label = document.getElementById('alarmLabel').value.trim();
+  const tiktok = document.getElementById('alarmTiktok').value.trim();
+  const alarms = loadAlarms();
+
+  if (editingAlarmId) {
+    const a = alarms.find(x => x.id === editingAlarmId);
+    a.time = time; a.label = label; a.tiktok = tiktok; a.days = Array.from(selectedDays);
+  } else {
+    alarms.push({
+      id: uid(), time, label, tiktok,
+      days: Array.from(selectedDays),
+      enabled: true,
+      lastFired: null
+    });
+  }
+  saveAlarms(alarms);
+  closeAlarmModal();
+  renderAlarms();
+}
+
+/* ---------- Render de frases ---------- */
+function renderPhrases() {
+  const phrases = loadPhrases();
+  document.getElementById('phraseCount').textContent = `${phrases.length} frases en total`;
+  const list = document.getElementById('phraseList');
+  list.innerHTML = phrases.map(p => `
+    <div class="phrase-item">
+      <div>
+        <p>${escapeHtml(p.text)}</p>
+        ${p.builtin ? '<span class="tag">PRECARGADA</span>' : '<span class="tag" style="color:var(--success);">TUYA</span>'}
+      </div>
+      <div class="phrase-actions">
+        <button class="icon-btn" onclick="editPhrase('${p.id}')">✏️</button>
+        <button class="icon-btn" onclick="deletePhrase('${p.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+let editingPhraseId = null;
+
+function openPhraseModal() {
+  editingPhraseId = null;
+  document.getElementById('phraseModalTitle').textContent = 'Nueva frase';
+  document.getElementById('phraseId').value = '';
+  document.getElementById('phraseText').value = '';
+  document.getElementById('phraseModal').classList.add('active');
+}
+
+function editPhrase(id) {
+  const p = loadPhrases().find(x => x.id === id);
+  if (!p) return;
+  editingPhraseId = id;
+  document.getElementById('phraseModalTitle').textContent = 'Editar frase';
+  document.getElementById('phraseId').value = p.id;
+  document.getElementById('phraseText').value = p.text;
+  document.getElementById('phraseModal').classList.add('active');
+}
+
+function closePhraseModal() {
+  document.getElementById('phraseModal').classList.remove('active');
+}
+
+function savePhrase() {
+  const text = document.getElementById('phraseText').value.trim();
+  if (!text) { alert('Escribe una frase'); return; }
+  const phrases = loadPhrases();
+  if (editingPhraseId) {
+    const p = phrases.find(x => x.id === editingPhraseId);
+    p.text = text;
+  } else {
+    phrases.push({ id: uid(), text, builtin: false });
+  }
+  savePhrases(phrases);
+  closePhraseModal();
+  renderPhrases();
+}
+
+function deletePhrase(id) {
+  if (!confirm('¿Borrar esta frase?')) return;
+  savePhrases(loadPhrases().filter(p => p.id !== id));
+  saveQueue(loadQueue().filter(qid => qid !== id));
+  renderPhrases();
+}
+
+/* ---------- Motor de alarma (chequeo por minuto) ---------- */
+let currentRingingAlarm = null;
+let lastCheckedMinute = null;
+
+function checkAlarms() {
+  if (currentRingingAlarm) return; // ya sonando
+  const now = new Date();
+  const minuteKey = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate() + '-' + now.getHours() + '-' + now.getMinutes();
+  if (minuteKey === lastCheckedMinute) return;
+  lastCheckedMinute = minuteKey;
+
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${hh}:${mm}`;
+  const currentDay = now.getDay();
+  const todayKey = now.toDateString();
+
+  const alarms = loadAlarms();
+  for (const a of alarms) {
+    if (!a.enabled) continue;
+    if (a.time !== currentTime) continue;
+    if (a.lastFired === todayKey) continue;
+    const days = a.days || [];
+    if (days.length > 0 && !days.includes(currentDay)) continue;
+
+    a.lastFired = todayKey;
+    saveAlarms(alarms);
+    fireAlarm(a);
+    break;
+  }
+}
+setInterval(checkAlarms, 1000);
+
+function fireAlarm(alarm) {
+  currentRingingAlarm = alarm;
+  const phrase = getNextPhrase();
+  document.getElementById('ringTime').textContent = alarm.time;
+  document.getElementById('ringPhrase').textContent = phrase.text;
+
+  const tiktokBtn = document.getElementById('ringTiktokBtn');
+  if (alarm.tiktok) {
+    tiktokBtn.style.display = 'flex';
+    tiktokBtn.onclick = () => window.open(alarm.tiktok, '_blank');
+  } else {
+    tiktokBtn.style.display = 'none';
+  }
+
+  document.getElementById('ringOverlay').classList.add('active');
+  playAlarmSound();
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate([500, 200, 500, 200, 500]); } catch(e){}
+  }
+}
+
+function stopAlarm() {
+  document.getElementById('ringOverlay').classList.remove('active');
+  stopAlarmSound();
+  currentRingingAlarm = null;
+  renderAlarms();
+}
+
+/* ---------- Sonido (generado con WebAudio, sin archivos externos) ---------- */
+let audioCtx = null;
+let beepInterval = null;
+
+function playAlarmSound() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    playBeepSequence();
+    beepInterval = setInterval(playBeepSequence, 1200);
+  } catch(e) { console.warn('No se pudo reproducir sonido', e); }
+}
+
+function playBeepSequence() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  [0, 0.22, 0.44].forEach((offset, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = i % 2 === 0 ? 880 : 1046.5;
+    gain.gain.setValueAtTime(0, now + offset);
+    gain.gain.linearRampToValueAtTime(0.25, now + offset + 0.02);
+    gain.gain.linearRampToValueAtTime(0, now + offset + 0.18);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now + offset);
+    osc.stop(now + offset + 0.2);
+  });
+}
+
+function stopAlarmSound() {
+  if (beepInterval) { clearInterval(beepInterval); beepInterval = null; }
+}
+
+/* ---------- Inicio ---------- */
+renderAlarms();
+renderPhrases();
+
+/* Desbloquear audio en móviles con la primera interacción */
+document.addEventListener('click', function unlockAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e){}
+}, { once: true });
+</script>
+</body>
+</html>
