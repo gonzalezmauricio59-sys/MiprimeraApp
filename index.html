@@ -144,6 +144,10 @@
 
   .sound-chip { min-width: 0; font-size: 11.5px; line-height: 1.3; padding: 10px 4px; }
 
+  .theme-chip { min-width: 72px; font-size: 11.5px; line-height: 1.3; padding: 10px 4px; }
+  .theme-chip-add { border-style: dashed; color: var(--accent2); }
+  .required-hint { font-size: 11px; color: var(--accent2); font-weight: 700; margin-left: 4px; }
+
   .file-drop {
     display: flex; align-items: center; gap: 10px;
     background: var(--bg-card2); border: 1px dashed var(--border);
@@ -263,9 +267,16 @@
 
   <!-- PHRASES VIEW -->
   <div class="view" id="view-phrases">
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:10px;">Categoría</div>
+      <div class="day-picker" id="phraseCategoryPicker"></div>
+      <div id="phraseSeriesPickerWrap" style="display:none; margin-top:8px;">
+        <div class="day-picker" id="phraseSeriesPicker"></div>
+      </div>
+    </div>
     <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <div style="font-weight:700;">Tus frases</div>
+        <div style="font-weight:700;">Frases</div>
         <div style="font-size:12px; color:var(--text-dim);" id="phraseCount"></div>
       </div>
       <button class="btn btn-primary" style="flex:none; padding:10px 16px;" onclick="openPhraseModal()">+ Agregar</button>
@@ -297,6 +308,12 @@
       <div class="day-chip" data-day="5">V</div>
       <div class="day-chip" data-day="6">S</div>
       <div class="day-chip" data-day="0">D</div>
+    </div>
+
+    <label>Tema de las frases <span class="required-hint">obligatorio</span></label>
+    <div class="day-picker" id="categoryPicker"></div>
+    <div id="seriesPickerWrap" style="display:none; margin-top:8px;">
+      <div class="day-picker" id="seriesPicker"></div>
     </div>
 
     <label>Nombre (opcional)</label>
@@ -340,6 +357,13 @@
     <div class="modal-close"><button onclick="closePhraseModal()">✕</button></div>
     <h2 id="phraseModalTitle">Nueva frase</h2>
     <input type="hidden" id="phraseId">
+
+    <label>Categoría <span class="required-hint">obligatorio</span></label>
+    <div class="day-picker" id="phraseModalCategoryPicker"></div>
+    <div id="phraseModalSeriesWrap" style="display:none; margin-top:8px;">
+      <div class="day-picker" id="phraseModalSeriesPicker"></div>
+    </div>
+
     <label>Frase motivacional</label>
     <textarea id="phraseText" placeholder="Escribe tu frase..."></textarea>
     <div class="btn-row">
@@ -368,39 +392,76 @@
 /* ---------- Almacenamiento ---------- */
 const STORAGE_ALARMS = 'ma_alarms';
 const STORAGE_PHRASES = 'ma_phrases';
-const STORAGE_QUEUE = 'ma_phrase_queue';
+const STORAGE_QUEUES = 'ma_phrase_queues';
+const STORAGE_CATEGORIES = 'ma_categories';
+
+/* ---------- Categorías y series ---------- */
+const BUILTIN_CATEGORIES = [
+  { id: 'anime', name: 'Anime', icon: '🎌' },
+  { id: 'biblia', name: 'Biblia', icon: '📖' },
+  { id: 'deporte', name: 'Deporte', icon: '🏆' }
+];
+const ANIME_SERIES = [
+  { id: 'naruto', name: 'Naruto' },
+  { id: 'dragonball', name: 'Dragon Ball' },
+  { id: 'aot', name: 'Attack on Titan' },
+  { id: 'haikyuu', name: 'Haikyuu' },
+  { id: 'onepiece', name: 'One Piece' }
+];
 
 const DEFAULT_PHRASES = [
-  { id: 'd1', text: 'El dolor es temporal, rendirse dura para siempre. — Naruto', builtin: true },
-  { id: 'd2', text: 'Un fracaso no significa nada, lo que importa es que sigas intentándolo. — Naruto', builtin: true },
-  { id: 'd3', text: 'Aquellos que rompen las reglas son escoria, pero los que abandonan a sus amigos son peor que escoria. — Kakashi, Naruto', builtin: true },
-  { id: 'd4', text: 'Si no te arriesgas, no podrás crear un futuro. — Naruto Uzumaki', builtin: true },
-  { id: 'd5', text: 'Cuando estés al límite, ahí es cuando debes seguir avanzando. — Naruto', builtin: true },
-  { id: 'd6', text: 'El poder no viene de la victoria, sino de las luchas. — Rocky Lee, Naruto', builtin: true },
-  { id: 'd7', text: 'No puedes cambiar el pasado, pero puedes decidir quién ser hoy. — Naruto', builtin: true },
-  { id: 'd8', text: 'Un genio es alguien que se esfuerza tan duro como puede. — Rock Lee, Naruto', builtin: true },
-  { id: 'd9', text: 'No es la fuerza lo que hace al héroe, es el corazón. — Naruto Uzumaki', builtin: true },
-  { id: 'd10', text: 'Levántate las veces que haga falta, ese es tu camino ninja. — Naruto', builtin: true },
-  { id: 'd11', text: 'No importa lo fuerte que seas, siempre hay alguien más fuerte. Sigue entrenando. — Vegeta, Dragon Ball', builtin: true },
-  { id: 'd12', text: 'Un guerrero nunca deja de superar sus límites. — Goku, Dragon Ball', builtin: true },
-  { id: 'd13', text: 'El poder no significa nada sin control. Domínate a ti mismo primero. — Dragon Ball Z', builtin: true },
-  { id: 'd14', text: 'Yo entreno todos los días porque quiero ser más fuerte que ayer. — Goku, Dragon Ball', builtin: true },
-  { id: 'd15', text: 'No te rindas, incluso cuando todo parezca imposible. — Gohan, Dragon Ball', builtin: true },
-  { id: 'd16', text: 'La verdadera fuerza nace de proteger lo que amas. — Dragon Ball Z', builtin: true },
-  { id: 'd17', text: 'Cada derrota es una oportunidad para volverte más fuerte. — Vegeta, Dragon Ball', builtin: true },
-  { id: 'd18', text: 'Si no arriesgas tu vida, no podrás derrotar a un enemigo fuerte. — Goku, Dragon Ball', builtin: true },
-  { id: 'd19', text: 'Levántate y lucha, aunque el mundo entero esté en tu contra. — Attack on Titan', builtin: true },
-  { id: 'd20', text: 'Si no luchas, no puedes ganar. — Eren Jaeger, Attack on Titan', builtin: true },
-  { id: 'd21', text: 'El mundo es cruel, pero también es muy hermoso. Sigue adelante. — Mikasa, Attack on Titan', builtin: true },
-  { id: 'd22', text: 'Dedica tu corazón a lo que hagas hasta el final. — Attack on Titan', builtin: true },
-  { id: 'd23', text: 'Sigue avanzando, aunque sea un paso a la vez. Eso es libertad. — Attack on Titan', builtin: true },
-  { id: 'd24', text: 'Nadie sabe cómo termina la historia, así que escribe la tuya luchando. — Attack on Titan', builtin: true },
-  { id: 'd25', text: 'La disciplina es elegir entre lo que quieres ahora y lo que quieres más. — Haikyuu', builtin: true },
-  { id: 'd26', text: 'Mientras el partido no termine, siempre hay una oportunidad. — Hinata Shoyo, Haikyuu', builtin: true },
-  { id: 'd27', text: 'No hay que ser un genio, hay que trabajar más duro que nadie. — Haikyuu', builtin: true },
-  { id: 'd28', text: 'Vuela más alto, no te conformes con lo que ya lograste. — Haikyuu', builtin: true },
-  { id: 'd29', text: 'Cada práctica cuenta, cada repetición te acerca a tu meta. — Haikyuu', builtin: true },
-  { id: 'd30', text: 'El que se esfuerza en silencio, brilla más fuerte en el momento decisivo. — Haikyuu', builtin: true },
+  { id: 'd1', text: 'El dolor es temporal, rendirse dura para siempre. — Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd2', text: 'Un fracaso no significa nada, lo que importa es que sigas intentándolo. — Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd3', text: 'Aquellos que rompen las reglas son escoria, pero los que abandonan a sus amigos son peor que escoria. — Kakashi, Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd4', text: 'Si no te arriesgas, no podrás crear un futuro. — Naruto Uzumaki', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd5', text: 'Cuando estés al límite, ahí es cuando debes seguir avanzando. — Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd6', text: 'El poder no viene de la victoria, sino de las luchas. — Rock Lee, Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd7', text: 'No puedes cambiar el pasado, pero puedes decidir quién ser hoy. — Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd8', text: 'Un genio es alguien que se esfuerza tan duro como puede. — Rock Lee, Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd9', text: 'No es la fuerza lo que hace al héroe, es el corazón. — Naruto Uzumaki', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd10', text: 'Levántate las veces que haga falta, ese es tu camino ninja. — Naruto', category: 'anime', series: 'naruto', builtin: true },
+  { id: 'd11', text: 'No importa lo fuerte que seas, siempre hay alguien más fuerte. Sigue entrenando. — Vegeta, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd12', text: 'Un guerrero nunca deja de superar sus límites. — Goku, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd13', text: 'El poder no significa nada sin control. Domínate a ti mismo primero. — Dragon Ball Z', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd14', text: 'Yo entreno todos los días porque quiero ser más fuerte que ayer. — Goku, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd15', text: 'No te rindas, incluso cuando todo parezca imposible. — Gohan, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd16', text: 'La verdadera fuerza nace de proteger lo que amas. — Dragon Ball Z', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd17', text: 'Cada derrota es una oportunidad para volverte más fuerte. — Vegeta, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd18', text: 'Si no arriesgas tu vida, no podrás derrotar a un enemigo fuerte. — Goku, Dragon Ball', category: 'anime', series: 'dragonball', builtin: true },
+  { id: 'd19', text: 'Levántate y lucha, aunque el mundo entero esté en tu contra. — Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd20', text: 'Si no luchas, no puedes ganar. — Eren Jaeger, Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd21', text: 'El mundo es cruel, pero también es muy hermoso. Sigue adelante. — Mikasa, Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd22', text: 'Dedica tu corazón a lo que hagas hasta el final. — Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd23', text: 'Sigue avanzando, aunque sea un paso a la vez. Eso es libertad. — Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd24', text: 'Nadie sabe cómo termina la historia, así que escribe la tuya luchando. — Attack on Titan', category: 'anime', series: 'aot', builtin: true },
+  { id: 'd25', text: 'La disciplina es elegir entre lo que quieres ahora y lo que quieres más. — Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd26', text: 'Mientras el partido no termine, siempre hay una oportunidad. — Hinata Shoyo, Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd27', text: 'No hay que ser un genio, hay que trabajar más duro que nadie. — Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd28', text: 'Vuela más alto, no te conformes con lo que ya lograste. — Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd29', text: 'Cada práctica cuenta, cada repetición te acerca a tu meta. — Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd30', text: 'El que se esfuerza en silencio, brilla más fuerte en el momento decisivo. — Haikyuu', category: 'anime', series: 'haikyuu', builtin: true },
+  { id: 'd31', text: 'Si no te arriesgas, no puedes crear un futuro. — Monkey D. Luffy, One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'd32', text: 'El poder no está en ganar siempre, sino en nunca rendirte. — One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'd33', text: 'Los sueños no tienen límites, mientras yo respire, los seguiré. — Monkey D. Luffy, One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'd34', text: 'Cuando decides levantarte, esa es la verdadera victoria. — One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'd35', text: 'No importa cuántas veces caigas, lo que importa es que sigas caminando hacia tu sueño. — Roronoa Zoro, One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'd36', text: 'La muerte de un hombre solo llega cuando la gente lo olvida. — Dr. Hiluluk, One Piece', category: 'anime', series: 'onepiece', builtin: true },
+  { id: 'b1', text: 'Todo lo puedo en Cristo que me fortalece. — Filipenses 4:13', category: 'biblia', builtin: true },
+  { id: 'b2', text: 'Sé fuerte y valiente, no temas ni desmayes, porque el Señor tu Dios estará contigo. — Josué 1:9', category: 'biblia', builtin: true },
+  { id: 'b3', text: 'Los que esperan en Jehová tendrán nuevas fuerzas, levantarán alas como las águilas. — Isaías 40:31', category: 'biblia', builtin: true },
+  { id: 'b4', text: 'Encomienda a Jehová tus obras y tus pensamientos serán afirmados. — Proverbios 16:3', category: 'biblia', builtin: true },
+  { id: 'b5', text: 'No nos cansemos de hacer el bien, porque a su tiempo segaremos si no desmayamos. — Gálatas 6:9', category: 'biblia', builtin: true },
+  { id: 'b6', text: 'El gozo de Jehová es vuestra fuerza. — Nehemías 8:10', category: 'biblia', builtin: true },
+  { id: 'b7', text: 'Porque yo sé los planes que tengo para ustedes, planes de bienestar y no de calamidad. — Jeremías 29:11', category: 'biblia', builtin: true },
+  { id: 'b8', text: 'Levántate, resplandece, porque ha venido tu luz. — Isaías 60:1', category: 'biblia', builtin: true },
+  { id: 'e1', text: 'No cuentes los días, haz que los días cuenten. — Muhammad Ali', category: 'deporte', builtin: true },
+  { id: 'e2', text: 'El talento gana partidos, pero el trabajo en equipo y la inteligencia ganan campeonatos. — Michael Jordan', category: 'deporte', builtin: true },
+  { id: 'e3', text: 'La mentalidad Mamba es tratar de ser lo mejor que puedas ser cada día. — Kobe Bryant', category: 'deporte', builtin: true },
+  { id: 'e4', text: 'No se trata de cuántas veces te caigas, sino de cuántas veces te levantes. — Vince Lombardi', category: 'deporte', builtin: true },
+  { id: 'e5', text: 'El dolor que sientes hoy será la fuerza que sientas mañana.', category: 'deporte', builtin: true },
+  { id: 'e6', text: 'Un campeón se define por su capacidad de recuperarse cuando la vida lo derriba. — Serena Williams', category: 'deporte', builtin: true },
+  { id: 'e7', text: 'El éxito no es definitivo, el fracaso no es fatal: lo que cuenta es el coraje para continuar. — Winston Churchill', category: 'deporte', builtin: true },
+  { id: 'e8', text: 'Entrena como si nunca hubieras ganado, compite como si nunca hubieras perdido. — Michael Jordan', category: 'deporte', builtin: true },
 ];
 
 function loadAlarms() {
@@ -418,18 +479,108 @@ function loadPhrases() {
 }
 function savePhrases(p) { localStorage.setItem(STORAGE_PHRASES, JSON.stringify(p)); }
 
-function loadQueue() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_QUEUE)) || []; } catch(e){ return []; }
+function loadCategories() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_CATEGORIES)) || []; } catch(e){ return []; }
 }
-function saveQueue(q) { localStorage.setItem(STORAGE_QUEUE, JSON.stringify(q)); }
+function saveCategories(c) { localStorage.setItem(STORAGE_CATEGORIES, JSON.stringify(c)); }
 
-/* ---------- Rotación de frases sin repetir ---------- */
-function getNextPhrase() {
+function allCategories() {
+  return BUILTIN_CATEGORIES.concat(loadCategories());
+}
+
+function categoryById(id) {
+  return allCategories().find(c => c.id === id) || null;
+}
+
+function categoryName(id) {
+  const c = categoryById(id);
+  return c ? c.name : id;
+}
+
+function seriesName(id) {
+  const s = ANIME_SERIES.find(s => s.id === id);
+  return s ? s.name : id;
+}
+
+function createCategory(name) {
+  name = (name || '').trim();
+  if (!name) return null;
+  const cats = loadCategories();
+  const id = 'cat_' + uid();
+  cats.push({ id, name, icon: '⭐' });
+  saveCategories(cats);
+  return id;
+}
+
+function handleCreateCategory(applyFn) {
+  const name = prompt('Nombre de la nueva categoría:');
+  if (name === null) return;
+  const id = createCategory(name);
+  if (!id) { alert('Escribí un nombre válido.'); return; }
+  applyFn(id);
+}
+
+/* ---------- Chips reutilizables de categoría / serie ---------- */
+function buildCategoryChips(containerEl, selectedId, onSelect, options) {
+  options = options || {};
+  const cats = allCategories();
+  let html = cats.map(c => `<div class="day-chip theme-chip ${c.id === selectedId ? 'active' : ''}" data-cat="${c.id}">${c.icon || '⭐'}<br>${escapeHtml(c.name)}</div>`).join('');
+  if (options.allowAll) {
+    html = `<div class="day-chip theme-chip ${selectedId === null ? 'active' : ''}" data-cat="__all__">🗂️<br>Todas</div>` + html;
+  }
+  if (options.allowCreate) {
+    html += `<div class="day-chip theme-chip theme-chip-add" data-cat="__new__">➕<br>Nueva</div>`;
+  }
+  containerEl.innerHTML = html;
+  containerEl.querySelectorAll('.theme-chip[data-cat]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const val = chip.dataset.cat;
+      if (val === '__new__') { onSelect('__new__'); return; }
+      onSelect(val === '__all__' ? null : val);
+    });
+  });
+}
+
+function buildSeriesChips(containerEl, selectedId, onSelect, options) {
+  options = options || {};
+  let html = ANIME_SERIES.map(s => `<div class="day-chip theme-chip ${s.id === selectedId ? 'active' : ''}" data-series="${s.id}">${escapeHtml(s.name)}</div>`).join('');
+  if (options.allowAll) {
+    html = `<div class="day-chip theme-chip ${selectedId === null ? 'active' : ''}" data-series="__all__">Todas</div>` + html;
+  }
+  containerEl.innerHTML = html;
+  containerEl.querySelectorAll('.theme-chip[data-series]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const val = chip.dataset.series;
+      onSelect(val === '__all__' ? null : val);
+    });
+  });
+}
+
+function loadQueues() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_QUEUES)) || {}; } catch(e){ return {}; }
+}
+function saveQueues(q) { localStorage.setItem(STORAGE_QUEUES, JSON.stringify(q)); }
+
+function topicKey(category, series) {
+  if (!category) return 'legacy_all';
+  return category === 'anime' ? `anime:${series}` : category;
+}
+
+function phrasesForTopic(category, series) {
   const phrases = loadPhrases();
-  if (phrases.length === 0) return { text: '¡Vamos, tú puedes lograrlo hoy!' };
-  let queue = loadQueue().filter(id => phrases.some(p => p.id === id));
+  if (!category) return phrases;
+  return phrases.filter(p => p.category === category && (category !== 'anime' || p.series === series));
+}
+
+/* ---------- Rotación de frases sin repetir, por tema ---------- */
+function getNextPhrase(themeCategory, themeSeries) {
+  const pool = phrasesForTopic(themeCategory, themeSeries);
+  if (pool.length === 0) return { text: '¡Vamos, tú puedes lograrlo hoy!' };
+  const key = topicKey(themeCategory, themeSeries);
+  const queues = loadQueues();
+  let queue = (queues[key] || []).filter(id => pool.some(p => p.id === id));
   if (queue.length === 0) {
-    queue = phrases.map(p => p.id);
+    queue = pool.map(p => p.id);
     // shuffle
     for (let i = queue.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -437,8 +588,9 @@ function getNextPhrase() {
     }
   }
   const nextId = queue.shift();
-  saveQueue(queue);
-  return phrases.find(p => p.id === nextId) || phrases[0];
+  queues[key] = queue;
+  saveQueues(queues);
+  return pool.find(p => p.id === nextId) || pool[0];
 }
 
 /* ---------- IDs ---------- */
@@ -451,7 +603,12 @@ document.querySelectorAll('.tabs button').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + btn.dataset.view).classList.add('active');
-    if (btn.dataset.view === 'phrases') renderPhrases();
+    if (btn.dataset.view === 'phrases') {
+      renderPhraseCategoryFilter();
+      if (activePhraseCategory === 'anime') renderPhraseSeriesFilter();
+      document.getElementById('phraseSeriesPickerWrap').style.display = activePhraseCategory === 'anime' ? 'block' : 'none';
+      renderPhrases();
+    }
   });
 });
 
@@ -481,6 +638,13 @@ function soundLabel(a) {
   return '🔔 Tono';
 }
 
+function themeLabel(a) {
+  if (!a.themeCategory) return 'Sin tema';
+  if (a.themeCategory === 'anime') return '🎌 ' + seriesName(a.themeSeries);
+  const cat = categoryById(a.themeCategory);
+  return (cat ? (cat.icon || '⭐') + ' ' + cat.name : a.themeCategory);
+}
+
 function extractYouTubeId(url) {
   if (!url) return null;
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -499,7 +663,8 @@ function renderAlarms() {
       <div class="alarm-time">${a.time}</div>
       <div class="alarm-info">
         <div>${a.label ? escapeHtml(a.label) : 'Alarma'}</div>
-        <div class="alarm-days">${formatDays(a.days)} · ${soundLabel(a)}</div>
+        <div class="alarm-days">${formatDays(a.days)} · ${escapeHtml(themeLabel(a))}</div>
+        <div class="alarm-days">${soundLabel(a)}</div>
         ${a.tiktok ? `<div class="alarm-link">🎵 ${escapeHtml(a.tiktok)}</div>` : ''}
       </div>
       <div class="alarm-actions">
@@ -538,6 +703,47 @@ let selectedDays = new Set();
 let selectedSoundType = 'default';
 let pendingAudioData = null;
 let pendingAudioFileName = null;
+let selectedThemeCategory = null;
+let selectedThemeSeries = null;
+
+function renderAlarmThemePicker() {
+  buildCategoryChips(document.getElementById('categoryPicker'), selectedThemeCategory, (val) => {
+    if (val === '__new__') {
+      handleCreateCategory((id) => {
+        selectedThemeCategory = id;
+        selectedThemeSeries = null;
+        renderAlarmThemePicker();
+        document.getElementById('seriesPickerWrap').style.display = 'none';
+      });
+      return;
+    }
+    selectedThemeCategory = val;
+    selectedThemeSeries = null;
+    renderAlarmThemePicker();
+    document.getElementById('seriesPickerWrap').style.display = val === 'anime' ? 'block' : 'none';
+    if (val === 'anime') renderAlarmSeriesPicker();
+  }, { allowCreate: true });
+}
+
+function renderAlarmSeriesPicker() {
+  buildSeriesChips(document.getElementById('seriesPicker'), selectedThemeSeries, (val) => {
+    selectedThemeSeries = val;
+    renderAlarmSeriesPicker();
+  });
+}
+
+function applyAlarmTheme(category, series) {
+  selectedThemeCategory = category || null;
+  selectedThemeSeries = series || null;
+  renderAlarmThemePicker();
+  const seriesWrap = document.getElementById('seriesPickerWrap');
+  if (selectedThemeCategory === 'anime') {
+    seriesWrap.style.display = 'block';
+    renderAlarmSeriesPicker();
+  } else {
+    seriesWrap.style.display = 'none';
+  }
+}
 
 function setSoundType(type) {
   selectedSoundType = type;
@@ -561,6 +767,7 @@ function openAlarmModal() {
   selectedDays = new Set();
   updateDayChips();
   setSoundType('default');
+  applyAlarmTheme(null, null);
   document.getElementById('alarmModal').classList.add('active');
 }
 
@@ -583,6 +790,7 @@ function editAlarm(id) {
   selectedDays = new Set(a.days || []);
   updateDayChips();
   setSoundType(a.soundType || 'default');
+  applyAlarmTheme(a.themeCategory || null, a.themeSeries || null);
   document.getElementById('alarmModal').classList.add('active');
 }
 
@@ -659,18 +867,25 @@ function saveAlarm() {
     if (!youtubeId) { alert('Ese link de YouTube no parece válido. Copiá el link completo del video.'); return; }
   }
 
+  if (!selectedThemeCategory) { alert('Elegí un tema para esta alarma.'); return; }
+  if (selectedThemeCategory === 'anime' && !selectedThemeSeries) { alert('Elegí una serie de anime para esta alarma.'); return; }
+
   if (existing) {
     existing.time = time; existing.label = label; existing.tiktok = tiktok;
     existing.days = Array.from(selectedDays);
     existing.soundType = selectedSoundType;
     existing.audioData = audioData; existing.audioFileName = audioFileName;
     existing.youtubeUrl = youtubeUrl; existing.youtubeId = youtubeId;
+    existing.themeCategory = selectedThemeCategory;
+    existing.themeSeries = selectedThemeCategory === 'anime' ? selectedThemeSeries : null;
   } else {
     alarms.push({
       id: uid(), time, label, tiktok,
       days: Array.from(selectedDays),
       soundType: selectedSoundType,
       audioData, audioFileName, youtubeUrl, youtubeId,
+      themeCategory: selectedThemeCategory,
+      themeSeries: selectedThemeCategory === 'anime' ? selectedThemeSeries : null,
       enabled: true,
       lastFired: null
     });
@@ -680,15 +895,64 @@ function saveAlarm() {
   renderAlarms();
 }
 
+/* ---------- Filtro de categoría/serie en la pestaña Frases ---------- */
+let activePhraseCategory = null;
+let activePhraseSeries = null;
+
+function renderPhraseCategoryFilter() {
+  buildCategoryChips(document.getElementById('phraseCategoryPicker'), activePhraseCategory, (val) => {
+    if (val === '__new__') {
+      handleCreateCategory((id) => {
+        activePhraseCategory = id;
+        activePhraseSeries = null;
+        renderPhraseCategoryFilter();
+        document.getElementById('phraseSeriesPickerWrap').style.display = 'none';
+        renderPhrases();
+      });
+      return;
+    }
+    activePhraseCategory = val;
+    activePhraseSeries = null;
+    renderPhraseCategoryFilter();
+    document.getElementById('phraseSeriesPickerWrap').style.display = val === 'anime' ? 'block' : 'none';
+    if (val === 'anime') renderPhraseSeriesFilter();
+    renderPhrases();
+  }, { allowAll: true, allowCreate: true });
+}
+
+function renderPhraseSeriesFilter() {
+  buildSeriesChips(document.getElementById('phraseSeriesPicker'), activePhraseSeries, (val) => {
+    activePhraseSeries = val;
+    renderPhraseSeriesFilter();
+    renderPhrases();
+  }, { allowAll: true });
+}
+
+function phraseTagLabel(p) {
+  if (p.category === 'anime') return '🎌 ' + seriesName(p.series);
+  const cat = categoryById(p.category);
+  return cat ? (cat.icon || '⭐') + ' ' + cat.name : (p.category || 'Sin categoría');
+}
+
 /* ---------- Render de frases ---------- */
 function renderPhrases() {
-  const phrases = loadPhrases();
-  document.getElementById('phraseCount').textContent = `${phrases.length} frases en total`;
+  const phrases = loadPhrases().filter(p => {
+    if (!activePhraseCategory) return true;
+    if (p.category !== activePhraseCategory) return false;
+    if (activePhraseCategory === 'anime' && activePhraseSeries) return p.series === activePhraseSeries;
+    return true;
+  });
+  document.getElementById('phraseCount').textContent = `${phrases.length} frase(s)`;
   const list = document.getElementById('phraseList');
+  if (phrases.length === 0) {
+    list.innerHTML = `<div class="empty-state">No hay frases todavía en este tema.<br>Tocá "+ Agregar" para sumar la primera.</div>`;
+    return;
+  }
   list.innerHTML = phrases.map(p => `
     <div class="phrase-item">
       <div>
         <p>${escapeHtml(p.text)}</p>
+        <span class="tag">${escapeHtml(phraseTagLabel(p))}</span>
         ${p.builtin ? '<span class="tag">PRECARGADA</span>' : '<span class="tag" style="color:var(--success);">TUYA</span>'}
       </div>
       <div class="phrase-actions">
@@ -700,12 +964,54 @@ function renderPhrases() {
 }
 
 let editingPhraseId = null;
+let phraseModalCategory = null;
+let phraseModalSeries = null;
+
+function renderPhraseModalThemePicker() {
+  buildCategoryChips(document.getElementById('phraseModalCategoryPicker'), phraseModalCategory, (val) => {
+    if (val === '__new__') {
+      handleCreateCategory((id) => {
+        phraseModalCategory = id;
+        phraseModalSeries = null;
+        renderPhraseModalThemePicker();
+        document.getElementById('phraseModalSeriesWrap').style.display = 'none';
+      });
+      return;
+    }
+    phraseModalCategory = val;
+    phraseModalSeries = null;
+    renderPhraseModalThemePicker();
+    document.getElementById('phraseModalSeriesWrap').style.display = val === 'anime' ? 'block' : 'none';
+    if (val === 'anime') renderPhraseModalSeriesPicker();
+  }, { allowCreate: true });
+}
+
+function renderPhraseModalSeriesPicker() {
+  buildSeriesChips(document.getElementById('phraseModalSeriesPicker'), phraseModalSeries, (val) => {
+    phraseModalSeries = val;
+    renderPhraseModalSeriesPicker();
+  });
+}
+
+function applyPhraseModalTheme(category, series) {
+  phraseModalCategory = category || null;
+  phraseModalSeries = series || null;
+  renderPhraseModalThemePicker();
+  const seriesWrap = document.getElementById('phraseModalSeriesWrap');
+  if (phraseModalCategory === 'anime') {
+    seriesWrap.style.display = 'block';
+    renderPhraseModalSeriesPicker();
+  } else {
+    seriesWrap.style.display = 'none';
+  }
+}
 
 function openPhraseModal() {
   editingPhraseId = null;
   document.getElementById('phraseModalTitle').textContent = 'Nueva frase';
   document.getElementById('phraseId').value = '';
   document.getElementById('phraseText').value = '';
+  applyPhraseModalTheme(activePhraseCategory, activePhraseSeries);
   document.getElementById('phraseModal').classList.add('active');
 }
 
@@ -716,6 +1022,7 @@ function editPhrase(id) {
   document.getElementById('phraseModalTitle').textContent = 'Editar frase';
   document.getElementById('phraseId').value = p.id;
   document.getElementById('phraseText').value = p.text;
+  applyPhraseModalTheme(p.category || null, p.series || null);
   document.getElementById('phraseModal').classList.add('active');
 }
 
@@ -726,12 +1033,17 @@ function closePhraseModal() {
 function savePhrase() {
   const text = document.getElementById('phraseText').value.trim();
   if (!text) { alert('Escribe una frase'); return; }
+  if (!phraseModalCategory) { alert('Elegí una categoría para esta frase.'); return; }
+  if (phraseModalCategory === 'anime' && !phraseModalSeries) { alert('Elegí una serie de anime para esta frase.'); return; }
+
+  const category = phraseModalCategory;
+  const series = phraseModalCategory === 'anime' ? phraseModalSeries : null;
   const phrases = loadPhrases();
   if (editingPhraseId) {
     const p = phrases.find(x => x.id === editingPhraseId);
-    p.text = text;
+    p.text = text; p.category = category; p.series = series;
   } else {
-    phrases.push({ id: uid(), text, builtin: false });
+    phrases.push({ id: uid(), text, category, series, builtin: false });
   }
   savePhrases(phrases);
   closePhraseModal();
@@ -741,7 +1053,9 @@ function savePhrase() {
 function deletePhrase(id) {
   if (!confirm('¿Borrar esta frase?')) return;
   savePhrases(loadPhrases().filter(p => p.id !== id));
-  saveQueue(loadQueue().filter(qid => qid !== id));
+  const queues = loadQueues();
+  Object.keys(queues).forEach(k => { queues[k] = queues[k].filter(qid => qid !== id); });
+  saveQueues(queues);
   renderPhrases();
 }
 
@@ -791,7 +1105,7 @@ document.getElementById('ringVideoPlayBtn').addEventListener('click', () => {
 
 function fireAlarm(alarm) {
   currentRingingAlarm = alarm;
-  const phrase = getNextPhrase();
+  const phrase = getNextPhrase(alarm.themeCategory, alarm.themeSeries);
   document.getElementById('ringTime').textContent = alarm.time;
   document.getElementById('ringPhrase').textContent = phrase.text;
 
@@ -883,6 +1197,7 @@ function stopAlarmSound() {
 
 /* ---------- Inicio ---------- */
 renderAlarms();
+renderPhraseCategoryFilter();
 renderPhrases();
 
 /* Desbloquear audio en móviles con la primera interacción */
